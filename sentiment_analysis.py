@@ -1,3 +1,4 @@
+import codecs
 import nltk
 import random
 from nltk.corpus import movie_reviews
@@ -9,6 +10,7 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.svm import SVC, LinearSVC, NuSVC
 
 from nltk.classify import ClassifierI
+from nltk.tokenize import word_tokenize
 from statistics import mode
 
 
@@ -36,23 +38,29 @@ class VoteClassifier(ClassifierI):
         return conf
 
 
-# document = [([w1, w2,..., wn], 'neg'), ([w1, w2,..., wn], 'pos')]
-documents = [(list(movie_reviews.words(file_id)), category) for category in movie_reviews.categories()
-             for file_id in movie_reviews.fileids(category)]
+dir = '/Users/jasonchang/Desktop/PycharmProjects/natural-language-processing/pickled_algorithms/'
 
-# documents = []
+pos_df = codecs.open('./positive.txt', 'r', encoding='latin2', errors='ignore').read()
+neg_df = codecs.open('./negative.txt', 'r', encoding='latin2', errors='ignore').read()
 
-# for category in movie_reviews.categories():
-#     for file_id in movie_reviews.file_ids(category):
-#         documents.append(list(movie_reviews.words(file_id)), category)
+documents = []
 
-random.shuffle(documents)
+for l in pos_df.split('\n'):
+    documents.append((l, 'pos'))
 
-# print(documents[1])
+for l in neg_df.split('\n'):
+    documents.append((l, 'neg'))
+
+save_document = open('documents.pickle', 'wb')
+pickle.dump(documents, save_document)
+save_document.close()
 
 all_words = []
-for w in movie_reviews.words():
-    # append without categorical label
+
+pos_words = word_tokenize(pos_df)
+neg_words = word_tokenize(neg_df)
+
+for w in (pos_words + neg_words):
     all_words.append(w.lower())
 
 all_words = nltk.FreqDist(all_words)
@@ -61,8 +69,11 @@ all_words = nltk.FreqDist(all_words)
 # print(all_words.most_common(30))
 # print(all_words['ridiculous'])1
 
-# Check against the top 3000 words of the document
-word_features = list(all_words.keys())[:3000]
+# Check against the top 5000 words of the document
+word_features = list(all_words.keys())[:5000]
+save_word_features = open('word_features.pickle', 'wb')
+pickle.dump(word_features, save_word_features)
+save_word_features.close()
 
 
 # print('Word Features: {}'.format(word_features))
@@ -71,7 +82,9 @@ word_features = list(all_words.keys())[:3000]
 # convert [([w1, w2,..., wn], 'neg'), ([w3, w4,..., wn], 'pos'),...]
 # -> {w1 : True, w2 : False, ...}
 def find_features(document):
-    words = set(document)
+    words = word_tokenize(document)
+    # words = set(document)
+
     features = {}
 
     for _ in word_features:
@@ -80,41 +93,33 @@ def find_features(document):
     return features
 
 
-print((find_features(movie_reviews.words('neg/cv000_29416.txt'))))
-
-# print(documents)
-# for (rev, category) in documents:
-#     print(rev)
-#     print(category)
-
 feature_sets = [(find_features(rev), category) for (rev, category) in documents]
-# print(feature_sets[:5])
+save_feature_sets = open('feature_sets.pickle', 'wb')
+pickle.dump(feature_sets, save_feature_sets)
+save_feature_sets.close()
+
+random.shuffle(feature_sets)
 
 # Positive data example:
-train_set = feature_sets[:1900]
-test_set = feature_sets[1900:]
+train_set = feature_sets[:10000]
+test_set = feature_sets[10000:]
 
 # Negative data example:
-train_set = feature_sets[100:]
-test_set = feature_sets[:100]
-
+train_set = feature_sets[600:]
+test_set = feature_sets[:600]
 
 '''
 Naive Bayes classifier
 posterior = prior occurrences * likelihood / evidence
 '''
-# classifier = nltk.NaiveBayesClassifier.train(train_set)
-classifier_f = open('naivebayes.pickle', 'rb')
-classifier = pickle.load(classifier_f)
-classifier_f.close()
-
+classifier = nltk.NaiveBayesClassifier.train(train_set)
 accuracy = nltk.classify.accuracy(classifier, test_set)
 
 # Decent range: 65% - 85%
 print('Original Naive Bayes Algorithm accuracy percentage: {}%'.format(accuracy * 100))
 classifier.show_most_informative_features(15)
 
-save_classifier = open('naivebayes.pickle', 'wb')
+save_classifier = open(dir + 'naivebayes_sentence.pickle', 'wb')
 pickle.dump(classifier, save_classifier)
 save_classifier.close()
 
@@ -122,6 +127,10 @@ save_classifier.close()
 MNB_classifier = SklearnClassifier(MultinomialNB())
 MNB_classifier.train(train_set)
 print('MNB_classifier accuracy percent: {}%'.format(nltk.classify.accuracy(MNB_classifier, test_set) * 100))
+
+save_classifier = open(dir + 'MNB_classifier.pickle', 'wb')
+pickle.dump(classifier, save_classifier)
+save_classifier.close()
 
 # GaussianNB_classifier = SklearnClassifier(GaussianNB())
 # GaussianNB_classifier.train(train_set)
@@ -134,26 +143,55 @@ BernoulliNB_classifier.train(train_set)
 print('BernoulliNB_classifier accuracy percent: {}%'.format(
     nltk.classify.accuracy(BernoulliNB_classifier, test_set) * 100))
 
+save_classifier = open(dir + 'BernoulliNB_classifier.pickle', 'wb')
+pickle.dump(classifier, save_classifier)
+save_classifier.close()
+
+
 LogisticRegression_classifier = SklearnClassifier(LogisticRegression())
 LogisticRegression_classifier.train(train_set)
 print('LogisticRegression_classifier accuracy percent: {}%'.format(nltk.classify.accuracy(LogisticRegression_classifier,
                                                                                           test_set) * 100))
+save_classifier = open(dir + 'LogisticRegression_classifier.pickle', 'wb')
+pickle.dump(classifier, save_classifier)
+save_classifier.close()
+
+
 SGDClassifier_classifier = SklearnClassifier(SGDClassifier())
 SGDClassifier_classifier.train(train_set)
 print('SGDClassifier_classifier accuracy percent: {}%'.format(nltk.classify.accuracy(SGDClassifier_classifier,
                                                                                      test_set) * 100))
+save_classifier = open(dir + 'SGDC_classifier.pickle', 'wb')
+pickle.dump(classifier, save_classifier)
+save_classifier.close()
+
+
 SVC_classifier = SklearnClassifier(SVC())
 SVC_classifier.train(train_set)
 print('SVC_classifier accuracy percent: {}%'.format(nltk.classify.accuracy(SVC_classifier,
                                                                            test_set) * 100))
+save_classifier = open(dir + 'SVC_classifier.pickle', 'wb')
+pickle.dump(classifier, save_classifier)
+save_classifier.close()
+
+
 LinearSVC_classifier = SklearnClassifier(LinearSVC())
 LinearSVC_classifier.train(train_set)
 print('LinearSVC_classifier accuracy percent: {}%'.format(nltk.classify.accuracy(LinearSVC_classifier,
                                                                                  test_set) * 100))
+save_classifier = open(dir + 'LinearSVC_classifier.pickle', 'wb')
+pickle.dump(classifier, save_classifier)
+save_classifier.close()
+
+
 NuSVC_classifier = SklearnClassifier(NuSVC())
 NuSVC_classifier.train(train_set)
 print('NuSVC_classifier accuracy percent: {}'.format(nltk.classify.accuracy(NuSVC_classifier,
                                                                             test_set) * 100))
+save_classifier = open(dir + 'NuSVC_classifier.pickle', 'wb')
+pickle.dump(classifier, save_classifier)
+save_classifier.close()
+
 
 combined_classifier = VoteClassifier(classifier, MNB_classifier, BernoulliNB_classifier,
                                      LogisticRegression_classifier, SGDClassifier_classifier, LinearSVC_classifier,
@@ -169,3 +207,8 @@ while i <= 5:
     print('Confidence [{}][{}]: {}'.format(i, j, combined_classifier.confidence(test_set[i][j])))
 
     i += 1
+
+
+
+
+
