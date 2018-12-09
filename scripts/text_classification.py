@@ -35,7 +35,7 @@ word_features = list(all_words.keys())[:3000]
 
 
 # convert [([w1, w2,..., wn], 'neg'), ([w1, w2,..., wn], 'pos')]
-# ->
+# -> [({w1: T/F, w2: T/F, ...}, pos/neg), ...]
 def find_features(document):
     words = set(document)
     features = {}
@@ -46,7 +46,7 @@ def find_features(document):
     return features
 
 
-print((find_features(movie_reviews.words('neg/cv000_29416.txt'))))
+print('Feats: {}'.format(find_features(movie_reviews.words('neg/cv000_29416.txt'))))
 
 # print(documents)
 # for (rev, category) in documents:
